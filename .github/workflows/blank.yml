@@ -1,175 +1,26 @@
 name: Setup SafeStream Project
-
 on:
   workflow_dispatch:
-
 jobs:
   setup:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create all project files
+      - name: Create all files
+        run: python3 setup.py
+
+      - name: Get gradle wrapper
         run: |
-          mkdir -p app/src/main/java/com/safestream/ai
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/xml
           mkdir -p gradle/wrapper
+          curl -sL -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar
 
-          cat > build.gradle << 'ENDOFFILE'
-plugins {
-    id 'com.android.application' version '8.2.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
-}
-ENDOFFILE
-
-          cat > settings.gradle << 'ENDOFFILE'
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "SafeStreamAI"
-include ':app'
-ENDOFFILE
-
-          cat > gradle.properties << 'ENDOFFILE'
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-android.useAndroidX=true
-android.enableJetifier=true
-kotlin.code.style=official
-android.nonTransitiveRClass=true
-ENDOFFILE
-
-          cat > gradlew << 'ENDOFFILE'
-#!/bin/sh
-APP_NAME="Gradle"
-APP_BASE_NAME=`basename "$0"`
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
-if [ -n "$JAVA_HOME" ] ; then
-    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
-        JAVACMD="$JAVA_HOME/jre/sh/java"
-    else
-        JAVACMD="$JAVA_HOME/bin/java"
-    fi
-else
-    JAVACMD="java"
-fi
-APP_HOME=`dirname "$0"`
-CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
-exec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \
-  "-Dorg.gradle.appname=$APP_BASE_NAME" \
-  -classpath "$CLASSPATH" \
-  org.gradle.wrapper.GradleWrapperMain \
-  "$@"
-ENDOFFILE
-          chmod +x gradlew
-
-          cat > gradle/wrapper/gradle-wrapper.properties << 'ENDOFFILE'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
-networkTimeout=10000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-ENDOFFILE
-
-          cat > app/build.gradle << 'ENDOFFILE'
-plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-}
-android {
-    namespace 'com.safestream.ai'
-    compileSdk 34
-    defaultConfig {
-        applicationId "com.safestream.ai"
-        minSdk 26
-        targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
-    }
-    buildTypes {
-        release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        debug { debuggable true }
-    }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    kotlinOptions { jvmTarget = '17' }
-}
-dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'androidx.recyclerview:recyclerview:1.3.2'
-}
-ENDOFFILE
-
-          cat > app/proguard-rules.pro << 'ENDOFFILE'
--keep class com.safestream.ai.** { *; }
--keep class okhttp3.** { *; }
--dontwarn okhttp3.**
-ENDOFFILE
-
-          cat > app/src/main/AndroidManifest.xml << 'ENDOFFILE'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.safestream.ai">
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions"/>
-    <application
-        android:allowBackup="true"
-        android:label="SafeStream AI"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/Theme.SafeStream">
-        <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <activity android:name=".SettingsActivity" android:exported="false"/>
-        <activity android:name=".BlockOverlayActivity" android:exported="false"
-            android:launchMode="singleInstance" android:excludeFromRecents="true"
-            android:theme="@style/Theme.SafeStream.BlockOverlay"/>
-        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-            </intent-filter>
-        </receiver>
-        <service android:name=".SafeAccessibilityService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.view.accessibility.AccessibilityService"/>
-            </intent-filter>
-            <meta-data android:name="android.view.accessibility.accessibilityservice"
-                android:resource="@xml/accessibility_
+      - name: Commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Add all SafeStream project files"
+          git push
