@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafeStream AI</string>
+    <string name="accessibility_service_label">SafeStream AI</string>
+    <string name="accessibility_service_description">SafeStream AI monitors YouTube to protect your child.</string>
+    <string name="status_active">AI Monitoring: ACTIVE</string>
+    <string name="status_inactive">AI Monitoring: INACTIVE</string>
+    <string name="dialog_enable_title">Enable Monitoring</string>
+    <string name="dialog_disable_title">Disable Protection?</string>
+    <string name="dialog_disable_message">This will stop AI filtering YouTube content.</string>
+    <string name="toast_api_key_saved">API key saved</string>
+    <string name="toast_name_saved">Name saved</string>
+    <string name="toast_time_saved">Time limit updated</string>
+    <string name="toast_log_cleared">History cleared</string>
+    <string name="toast_threshold_updated">Filter set to %d%%</string>
+</resources>

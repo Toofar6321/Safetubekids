@@ -1,0 +1,3 @@
+-keep class com.safestream.ai.** { *; }
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**

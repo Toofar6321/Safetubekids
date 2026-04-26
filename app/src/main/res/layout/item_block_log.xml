@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="12dp" app:strokeWidth="1dp" app:strokeColor="@color/surface_border">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+        <TextView android:id="@+id/tv_log_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/white" android:textStyle="bold" android:maxLines="2" android:ellipsize="end"/>
+        <TextView android:id="@+id/tv_log_channel" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/text_muted" android:textSize="12sp" android:layout_marginTop="2dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
+            <TextView android:id="@+id/tv_log_reason" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="@color/danger_red" android:textSize="11sp" android:maxLines="1" android:ellipsize="end"/>
+            <TextView android:id="@+id/tv_log_score" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/safe_green" android:textSize="11sp"/>
+            <TextView android:id="@+id/tv_log_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:textColor="@color/text_muted" android:textSize="11sp"/>
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

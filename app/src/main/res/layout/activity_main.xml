@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background_dark">
+    <com.google.android.material.appbar.AppBarLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/surface_dark" app:elevation="0dp">
+        <com.google.android.material.appbar.MaterialToolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="?attr/actionBarSize" app:title="SafeStream AI" app:subtitle="Parent Dashboard" app:titleTextColor="@color/white" app:subtitleTextColor="@color/text_muted"/>
+    </com.google.android.material.appbar.AppBarLayout>
+    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" app:layout_behavior="@string/appbar_scrolling_view_behavior" android:padding="16dp" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="18dp" app:strokeWidth="0dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="18dp" android:gravity="center_vertical">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:id="@+id/tv_service_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AI Monitoring: INACTIVE" android:textSize="15sp" android:textStyle="bold" android:textColor="@color/danger_red"/>
+                        <TextView android:id="@+id/tv_last_blocked" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="No blocks today" android:textSize="12sp" android:textColor="@color/text_muted" android:layout_marginTop="4dp"/>
+                    </LinearLayout>
+                    <View android:id="@+id/view_status_dot" android:layout_width="12dp" android:layout_height="12dp" android:layout_marginEnd="14dp" android:background="@drawable/circle_dot_red"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/btn_toggle_service" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Enable" android:textSize="12sp" app:cornerRadius="10dp"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp">
+                <com.google.android.material.card.MaterialCardView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Blocked" android:textSize="11sp" android:textColor="@color/text_muted"/>
+                        <TextView android:id="@+id/tv_block_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="28sp" android:textStyle="bold" android:textColor="@color/danger_red"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="today" android:textSize="11sp" android:textColor="@color/text_muted"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.card.MaterialCardView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="YouTube" android:textSize="11sp" android:textColor="@color/text_muted"/>
+                        <TextView android:id="@+id/tv_screen_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0m" android:textSize="28sp" android:textStyle="bold" android:textColor="@color/amber"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="today" android:textSize="11sp" android:textColor="@color/text_muted"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="18dp" app:strokeWidth="0dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="AI Filter Strictness" android:textSize="14sp" android:textStyle="bold" android:textColor="@color/white"/>
+                        <TextView android:id="@+id/tv_threshold_value" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="75" android:textSize="22sp" android:textStyle="bold" android:textColor="@color/safe_green"/>
+                    </LinearLayout>
+                    <SeekBar android:id="@+id/seek_threshold" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="95" android:progress="75" android:progressTint="@color/safe_green" android:thumbTint="@color/safe_green"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Relaxed" android:textSize="10sp" android:textColor="@color/text_muted"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Strict" android:textSize="10sp" android:textColor="@color/text_muted"/>
+                    </LinearLayout>
+                    <TextView android:id="@+id/tv_threshold_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/bg_pill_green" android:padding="10dp" android:text="Balanced" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/safe_green"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Block History" android:textSize="15sp" android:textStyle="bold" android:textColor="@color/white"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_clear_log" style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clear" android:textColor="@color/text_muted" android:textSize="12sp"/>
+            </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_block_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false"/>
+            <TextView android:id="@+id/tv_empty_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="No blocks yet. SafeStream is watching." android:textSize="13sp" android:textColor="@color/text_muted" android:textAlignment="center" android:padding="24dp" android:visibility="gone"/>
+            <com.google.android.material.button.MaterialButton android:id="@+id/btn_settings" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp" android:layout_marginBottom="24dp" android:text="Settings" app:cornerRadius="14dp"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

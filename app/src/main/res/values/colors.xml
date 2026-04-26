@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="safe_green">#00C48C</color>
+    <color name="safe_green_dark">#00A87A</color>
+    <color name="danger_red">#FF3D57</color>
+    <color name="amber">#FFB400</color>
+    <color name="background_dark">#0B1622</color>
+    <color name="surface_dark">#131F2E</color>
+    <color name="surface_border">#1D3048</color>
+    <color name="block_overlay_bg">#CC1A0A1F</color>
+    <color name="white">#FFFFFF</color>
+    <color name="text_muted">#607080</color>
+    <color name="colorPrimary">@color/safe_green</color>
+    <color name="colorPrimaryVariant">@color/safe_green_dark</color>
+    <color name="colorOnPrimary">@color/white</color>
+    <color name="colorSecondary">@color/amber</color>
+    <color name="colorOnSecondary">@color/background_dark</color>
+    <color name="colorSurface">@color/surface_dark</color>
+    <color name="colorOnSurface">@color/white</color>
+    <color name="colorBackground">@color/background_dark</color>
+    <color name="colorOnBackground">@color/white</color>
+    <color name="colorError">@color/danger_red</color>
+</resources>

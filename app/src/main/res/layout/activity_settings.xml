@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background_dark" android:padding="16dp" android:clipToPadding="false">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:layout_marginTop="8dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Anthropic API Key" android:textSize="13sp" android:textStyle="bold" android:textColor="@color/white" android:layout_marginBottom="4dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Get yours at console.anthropic.com" android:textSize="11sp" android:textColor="@color/text_muted" android:layout_marginBottom="10dp"/>
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="sk-ant-api03-..." style="@style/Widget.Material3.TextInputLayout.OutlinedBox" app:boxStrokeColor="@color/safe_green" app:hintTextColor="@color/text_muted">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_api_key" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textPassword" android:textColor="@color/white"/>
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_save_api_key" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="10dp" android:text="Save API Key" app:cornerRadius="12dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Child name" android:layout_marginBottom="10dp" style="@style/Widget.Material3.TextInputLayout.OutlinedBox" app:boxStrokeColor="@color/safe_green" app:hintTextColor="@color/text_muted">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_child_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textPersonName" android:textColor="@color/white"/>
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_save_name" android:layout_width="match_parent" android:layout_height="48dp" android:text="Save Name" app:cornerRadius="12dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Daily limit (minutes)" android:layout_marginBottom="10dp" style="@style/Widget.Material3.TextInputLayout.OutlinedBox" app:boxStrokeColor="@color/amber" app:hintTextColor="@color/text_muted">
+                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/et_time_limit" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" android:textColor="@color/white"/>
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_save_time" android:layout_width="match_parent" android:layout_height="48dp" android:text="Save Limit" app:cornerRadius="12dp" app:backgroundTint="@color/amber"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="32dp" app:cardBackgroundColor="@color/surface_dark" app:cardCornerRadius="16dp" app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_clear_log" android:layout_width="match_parent" android:layout_height="48dp" android:text="Clear Block Log" app:cornerRadius="12dp" app:backgroundTint="@color/danger_red"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>
