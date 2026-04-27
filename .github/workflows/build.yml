@@ -21,7 +21,13 @@ jobs:
 
       - name: Build APK
         run: ./gradlew assembleDebug
-
+private fun load(p: SharedPreferences): JSONArray {
+    return try {
+        JSONArray(p.getString(KEY, null) ?: JSONArray())
+    } catch (_: Exception) {
+        JSONArray()
+    }
+}
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
