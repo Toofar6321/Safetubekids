@@ -9,20 +9,23 @@
         android:allowBackup="true"
         android:label="SafeStream AI"
         android:theme="@style/Theme.SafeStream">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".SettingsActivity" android:exported="false"/>
+        <activity android:name=".SettingsActivity"
+            android:exported="false"/>
         <activity android:name=".BlockOverlayActivity"
             android:exported="false"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.SafeStream.BlockOverlay"/>
         <receiver android:name=".BootReceiver"
-            android:enabled="true" android:exported="true">
+            android:enabled="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
@@ -34,3 +37,8 @@
                 <action android:name="android.view.accessibility.AccessibilityService"/>
             </intent-filter>
             <meta-data
+                android:name="android.view.accessibility.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
+    </application>
+</manifest>
