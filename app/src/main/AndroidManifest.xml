@@ -1,30 +1,58 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.safestream.ai">
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions"/>
-    <application android:allowBackup="true" android:label="SafeStream AI"
-        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
-        android:theme="@style/Theme.SafeStream">
-        <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <activity android:name=".SettingsActivity" android:exported="false"/>
-        <activity android:name=".BlockOverlayActivity" android:exported="false"
-            android:launchMode="singleInstance" android:excludeFromRecents="true"
-            android:theme="@style/Theme.SafeStream.BlockOverlay"/>
-        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
-            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
-        </receiver>
-        <service android:name=".SafeAccessibilityService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
-            <intent-filter><action android:name="android.view.accessibility.AccessibilityService"/></intent-filter>
-            <meta-data android:name="android.view.accessibility.accessibilityservice"
-                android:resource="@xml/accessibility_service_config"/>
-        </service>
-    </application>
-</manifest>
+package com.safestream.ai
+import android.content.Context
+import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.*
+
+object BlockEventLogger {
+    private const val PREFS = "safestream_block_log"
+    private const val KEY = "events"
+    private val FMT = SimpleDateFormat("MMM d 'at' h:mm a", Locale.getDefault())
+
+    fun log(ctx: Context, ev: BlockEvent) {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val old = load(p)
+        val entry = JSONObject()
+        entry.put("title", ev.title)
+        entry.put("channel", ev.channel)
+        entry.put("score", ev.score)
+        entry.put("reason", ev.reason)
+        entry.put("timestamp", ev.timestamp)
+        entry.put("time_str", FMT.format(Date(ev.timestamp)))
+        val updated = JSONArray()
+        updated.put(entry)
+        for (i in 0 until minOf(old.length(), 199)) {
+            updated.put(old.getJSONObject(i))
+        }
+        p.edit().putString(KEY, updated.toString()).apply()
+    }
+
+    fun getAll(ctx: Context): List<Map<String, Any>> {
+        val arr = load(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
+        val result = mutableListOf<Map<String, Any>>()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            result.add(mapOf(
+                "title" to o.optString("title"),
+                "channel" to o.optString("channel"),
+                "score" to o.optInt("score"),
+                "reason" to o.optString("reason"),
+                "timestamp" to o.optLong("timestamp"),
+                "time_str" to o.optString("time_str")
+            ))
+        }
+        return result
+    }
+
+    fun clear(ctx: Context) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().remove(KEY).apply()
+    }
+
+    private fun load(p: SharedPreferences): JSONArray {
+        val raw = p.getString(KEY, null) ?: return JSONArray()
+        return try { JSONArray(raw) } catch (e: Exception) { JSONArray() }
+    }
+}
