@@ -16,61 +16,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Fix manifest
-        run: |
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:tools="http://schemas.android.com/tools"
-              package="com.safestream.ai">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-                  tools:ignore="ProtectedPermissions"/>
-              <application
-                  android:allowBackup="true"
-                  android:label="SafeStream AI"
-                  android:theme="@style/Theme.SafeStream">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <activity android:name=".SettingsActivity" android:exported="false"/>
-                  <activity android:name=".BlockOverlayActivity"
-                      android:exported="false"
-                      android:launchMode="singleInstance"
-                      android:excludeFromRecents="true"
-                      android:theme="@style/Theme.SafeStream.BlockOverlay"/>
-                  <receiver android:name=".BootReceiver"
-                      android:enabled="true" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                      </intent-filter>
-                  </receiver>
-                  <service android:name=".SafeAccessibilityService"
-                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.view.accessibility.AccessibilityService"/>
-                      </intent-filter>
-                      <meta-data
-                          android:name="android.view.accessibility.accessibilityservice"
-                          android:resource="@xml/accessibility_service_config"/>
-                  </service>
-              </application>
-          </manifest>
-          EOF
-
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Build APK
-        run: ./gradlew assembleDebug --info 2>&1 | grep -E "^e:|error:" | head -20; ./gradlew assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: SafeStream-AI
-          path: "**/*.apk"
+          path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
