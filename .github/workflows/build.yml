@@ -17,10 +17,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
       - name: Build APK
-        run: ./gradlew assembleDebug 2>&1 | tee /tmp/build.log; grep "^e:" /tmp/build.log | head -20 || true; exit ${PIPESTATUS[0]}
+        run: ./gradlew assembleDebug
+      - name: Find APK
+        run: find /home/runner/work -name "*.apk" 2>/dev/null
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SafeStream-AI
-          path: "**/*.apk"
+          path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
