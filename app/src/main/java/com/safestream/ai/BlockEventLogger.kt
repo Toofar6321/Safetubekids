@@ -21,5 +21,11 @@ object BlockEventLogger {
         return (0 until arr.length()).map { i -> val o=arr.getJSONObject(i); mapOf("title" to o.optString("title"),"channel" to o.optString("channel"),"score" to o.optInt("score"),"reason" to o.optString("reason"),"timestamp" to o.optLong("timestamp"),"time_str" to o.optString("time_str")) }
     }
     fun clear(ctx: Context) = ctx.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().remove(KEY).apply()
-    private fun load(p: SharedPreferences): JSONArray = try { JSONArray(p.getString(KEY,null) ?: return JSONArray()) } catch (_: Exception) { JSONArray() }
+    private fun load(p: SharedPreferences): JSONArray {
+        return try {
+            JSONArray(p.getString(KEY, null) ?: "[]")
+        } catch (_: Exception) {
+            JSONArray()
+        }
+    }
 }
