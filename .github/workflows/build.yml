@@ -17,9 +17,9 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
       - name: Build APK
+        run: ./gradlew assembleDebug --info 2>&1 | grep "^e:" | head -30 || true
+      - name: Build APK real
         run: ./gradlew assembleDebug
-      - name: Find APK
-        run: find /home/runner/work -name "*.apk" 2>/dev/null
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
