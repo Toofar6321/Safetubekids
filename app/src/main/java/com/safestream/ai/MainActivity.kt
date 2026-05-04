@@ -1,35 +1,55 @@
 package com.safestream.ai
+
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
-import android.widget.TextView
+import android.view.accessibility.AccessibilityManager
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
-    override fun onCreate(s: Bundle?) {
-        super.onCreate(s)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        try {
-            val prefs = getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
-            findViewById<Button>(R.id.btn_toggle_service)?.setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
-            findViewById<Button>(R.id.btn_settings)?.setOnClickListener {
-                startActivity(Intent(this, SettingsActivity::class.java))
-            }
-            findViewById<Button>(R.id.btn_clear_log)?.setOnClickListener {
-                BlockEventLogger.clear(this)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+
+        val btnToggle = findViewById<Button>(R.id.btn_toggle_service)
+        val btnSettings = findViewById<Button>(R.id.btn_settings)
+        val tvStatus = findViewById<TextView>(R.id.tv_service_status)
+
+        updateStatus(tvStatus)
+
+        btnToggle.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
-}
-class BlockLogAdapter(private val ev: List<Map<String,Any>>) : androidx.recyclerview.widget.RecyclerView.Adapter<BlockLogAdapter.VH>() {
-    class VH(v: android.view.View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(v)
-    override fun onCreateViewHolder(p: android.view.ViewGroup, t: Int) = VH(android.view.LayoutInflater.from(p.context).inflate(R.layout.item_block_log,p,false))
-    override fun getItemCount() = ev.size
-    override fun onBindViewHolder(h: VH, i: Int) {}
+
+    override fun onResume() {
+        super.onResume()
+        updateStatus(findViewById(R.id.tv_service_status))
+    }
+
+    private fun updateStatus(tv: TextView?) {
+        val running = isServiceEnabled()
+        tv?.text = if (running) "AI Monitoring: ACTIVE" else "AI Monitoring: INACTIVE"
+        tv?.setTextColor(ContextCompat.getColor(this,
+            if (running) R.color.safe_green else R.color.danger_red))
+    }
+
+    private fun isServiceEnabled(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        return am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            .any {
+                it.resolveInfo.serviceInfo.packageName == packageName &&
+                it.resolveInfo.serviceInfo.name == SafeAccessibilityService::class.java.name
+            }
+    }
 }
