@@ -3,6 +3,8 @@ package com.safestream.ai
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
@@ -30,11 +32,16 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+
+        // Check overlay permission on first launch
+        checkOverlayPermission()
     }
 
     override fun onResume() {
         super.onResume()
         updateStatus(findViewById(R.id.tv_service_status))
+        // Re-check overlay permission when user returns from settings
+        checkOverlayPermission()
     }
 
     private fun updateStatus(tv: TextView?) {
@@ -51,5 +58,23 @@ class MainActivity : AppCompatActivity() {
                 it.resolveInfo.serviceInfo.packageName == packageName &&
                 it.resolveInfo.serviceInfo.name == SafeAccessibilityService::class.java.name
             }
+    }
+
+    private fun checkOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("Permission Required")
+                .setMessage("SafeStream needs permission to display blocking screens over YouTube. Without this, blocked videos may not be properly hidden.")
+                .setPositiveButton("Grant Permission") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                }
+                .setNegativeButton("Skip", null)
+                .setCancelable(false)
+                .show()
+        }
     }
 }
