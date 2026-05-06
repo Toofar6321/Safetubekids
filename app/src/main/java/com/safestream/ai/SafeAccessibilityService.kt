@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
@@ -30,9 +31,11 @@ class SafeAccessibilityService : AccessibilityService() {
     private val http = OkHttpClient.Builder().connectTimeout(10,TimeUnit.SECONDS).readTimeout(20,TimeUnit.SECONDS).build()
     private var lastTitle = ""; private var lastTime = 0L
     private val cache = mutableMapOf<String, SafetyResult>()
+    private lateinit var overlayManager: BlockOverlayManager
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        overlayManager = BlockOverlayManager(this)
         serviceInfo = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             packageNames = arrayOf(YT)
@@ -81,12 +84,30 @@ class SafeAccessibilityService : AccessibilityService() {
 
     private fun block(title: String, channel: String, score: Int, reason: String) {
         main.post {
-            performGlobalAction(GLOBAL_ACTION_BACK)
+            // 1. Send YouTube to background via HOME (kills PiP trigger)
+            performGlobalAction(GLOBAL_ACTION_HOME)
             Toast.makeText(this,"SafeStream: Blocked",Toast.LENGTH_SHORT).show()
-            startActivity(Intent(this,BlockOverlayActivity::class.java).apply { flags=Intent.FLAG_ACTIVITY_NEW_TASK; putExtra("title",title); putExtra("channel",channel); putExtra("score",score); putExtra("reason",reason) })
+
+            // 2. Show overlay on top of EVERYTHING (including any surviving PiP)
+            if (Settings.canDrawOverlays(this)) {
+                main.postDelayed({
+                    overlayManager.showBlock(title, channel, score, reason)
+                }, 400)
+            } else {
+                Log.w(TAG, "Overlay permission not granted - falling back to Activity")
+                startActivity(Intent(this, BlockOverlayActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    putExtra("title", title); putExtra("channel", channel)
+                    putExtra("score", score); putExtra("reason", reason)
+                })
+            }
         }
-        BlockEventLogger.log(this,BlockEvent(title,channel,score,reason))
-        sendBroadcast(Intent("com.safestream.BLOCK").apply { putExtra("title",title); putExtra("channel",channel); putExtra("score",score); putExtra("reason",reason); putExtra("timestamp",System.currentTimeMillis()) })
+        BlockEventLogger.log(this, BlockEvent(title, channel, score, reason))
+        sendBroadcast(Intent("com.safestream.BLOCK").apply {
+            putExtra("title", title); putExtra("channel", channel)
+            putExtra("score", score); putExtra("reason", reason)
+            putExtra("timestamp", System.currentTimeMillis())
+        })
     }
 
     private fun thresh() = getSharedPreferences("safestream_prefs",MODE_PRIVATE).getInt("threshold",75)
