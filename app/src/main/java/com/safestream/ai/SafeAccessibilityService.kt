@@ -19,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,6 +27,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+
+data class SafetyResult(
+    val score: Int,
+    val verdict: String,
+    val flags: List<String>,
+    val summary: String
+)
+
+data class BlockEvent(
+    val title: String,
+    val channel: String,
+    val score: Int,
+    val reason: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 private const val TAG = "SafeStreamAI"
 private const val YT  = "com.google.android.youtube"
@@ -46,9 +60,9 @@ private val BLOCKED_CHANNELS = setOf(
 
 class SafeAccessibilityService : AccessibilityService() {
 
-    private val scope  = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val main   = Handler(Looper.getMainLooper())
-    private val http   = OkHttpClient.Builder()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val main  = Handler(Looper.getMainLooper())
+    private val http  = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
         .build()
@@ -57,14 +71,11 @@ class SafeAccessibilityService : AccessibilityService() {
     private var lastTime  = 0L
     private val cache     = mutableMapOf<String, SafetyResult>()
 
-    // ── WindowManager overlay ──────────────────────────────────────────────
     private val wm: WindowManager by lazy {
         getSystemService(WINDOW_SERVICE) as WindowManager
     }
     private var overlayView: View? = null
     private val timerHandler = Handler(Looper.getMainLooper())
-
-    // ── Lifecycle ──────────────────────────────────────────────────────────
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -89,20 +100,19 @@ class SafeAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    // ── Event handler ──────────────────────────────────────────────────────
-
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.packageName != YT) return
         val root = rootInActiveWindow ?: return
 
-        val title = listOf(
-            "$YT:id/title",
-            "$YT:id/reel_title",
-            "$YT:id/mini_title"
-        ).flatMap { root.findAccessibilityNodeInfosByViewId(it) }
-            .firstOrNull()
-            ?.text?.toString()?.trim()
-            ?.takeIf { it.isNotBlank() } ?: return
+        var title = ""
+        for (id in listOf("$YT:id/title", "$YT:id/reel_title", "$YT:id/mini_title")) {
+            val nodes = root.findAccessibilityNodeInfosByViewId(id)
+            if (nodes.isNotEmpty()) {
+                val t = nodes[0].text?.toString()?.trim() ?: continue
+                if (t.isNotBlank()) { title = t; break }
+            }
+        }
+        if (title.isBlank()) return
 
         val channel = root.findAccessibilityNodeInfosByViewId("$YT:id/channel_name")
             .firstOrNull()?.text?.toString()?.trim() ?: "Unknown"
@@ -116,37 +126,34 @@ class SafeAccessibilityService : AccessibilityService() {
         sendBroadcast(Intent("com.safestream.DETECTION")
             .putExtra("title", title).putExtra("channel", channel))
 
-        // Tier 1: blocked channel
         if (BLOCKED_CHANNELS.any { channel.contains(it, ignoreCase = true) }) {
-            block(title, channel, 0, "Channel permanently blocked"); return
-        }
-
-        // Tier 2: hard keyword — instant, no API
-        if (HARD_BLOCK.any { title.lowercase().contains(it) }) {
-            block(title, channel, 5, "Contains blocked keyword"); return
-        }
-
-        // Tier 3: cache
-        cache[title]?.let { cached ->
-            if (cached.score < threshold() || cached.verdict == "BLOCKED")
-                block(title, channel, cached.score,
-                    cached.flags.firstOrNull() ?: "Previously blocked")
+            block(title, channel, 0, "Channel permanently blocked")
             return
         }
 
-        // Tier 4: Claude AI
+        if (HARD_BLOCK.any { title.lowercase().contains(it) }) {
+            block(title, channel, 5, "Contains blocked keyword")
+            return
+        }
+
+        val cached = cache[title]
+        if (cached != null) {
+            if (cached.score < threshold() || cached.verdict == "BLOCKED") {
+                block(title, channel, cached.score,
+                    cached.flags.firstOrNull() ?: "Previously blocked")
+            }
+            return
+        }
+
         analyseWithClaude(title, channel)
     }
-
-    // ── Claude AI ──────────────────────────────────────────────────────────
 
     private fun analyseWithClaude(title: String, channel: String) {
         scope.launch {
             try {
                 val key = prefs().getString("claude_api_key", "") ?: ""
                 if (key.isBlank()) {
-                    Log.w(TAG, "No API key — blocking")
-                    block(title, channel, 0, "No API key — go to Settings to add one")
+                    block(title, channel, 0, "No API key — add one in Settings")
                     return@launch
                 }
 
@@ -160,7 +167,8 @@ class SafeAccessibilityService : AccessibilityService() {
                     put("max_tokens", 200)
                     put("messages", JSONArray().put(
                         JSONObject().apply {
-                            put("role", "user"); put("content", prompt)
+                            put("role", "user")
+                            put("content", prompt)
                         }
                     ))
                 }.toString().toRequestBody("application/json".toMediaType())
@@ -181,10 +189,9 @@ class SafeAccessibilityService : AccessibilityService() {
                     .replace("```json", "").replace("```", "").trim()
 
                 val json  = JSONObject(text)
-                val flags = mutableListOf<String>().also { list ->
-                    json.optJSONArray("flags")?.let {
-                        for (i in 0 until it.length()) list.add(it.getString(i))
-                    }
+                val flags = mutableListOf<String>()
+                json.optJSONArray("flags")?.let { arr ->
+                    for (i in 0 until arr.length()) flags.add(arr.getString(i))
                 }
 
                 val result = SafetyResult(
@@ -194,11 +201,12 @@ class SafeAccessibilityService : AccessibilityService() {
                     json.optString("summary", "")
                 )
                 cache[title] = result
-                Log.i(TAG, "Claude: \"$title\" → ${result.verdict} (${result.score})")
+                Log.i(TAG, "Claude: \"$title\" -> ${result.verdict} (${result.score})")
 
-                if (result.score < threshold() || result.verdict == "BLOCKED")
+                if (result.score < threshold() || result.verdict == "BLOCKED") {
                     block(title, channel, result.score,
                         result.flags.firstOrNull() ?: result.summary)
+                }
 
             } catch (e: Exception) {
                 Log.w(TAG, "Claude failed: ${e.message} — blocking")
@@ -207,19 +215,11 @@ class SafeAccessibilityService : AccessibilityService() {
         }
     }
 
-    // ── Block action ───────────────────────────────────────────────────────
-
     private fun block(title: String, channel: String, score: Int, reason: String) {
         main.post {
-            // Step 1: press back to leave YouTube
             performGlobalAction(GLOBAL_ACTION_BACK)
-
-            // Step 2: show overlay after brief delay so back action completes
-            main.postDelayed({
-                showOverlay(title, reason)
-            }, 300)
+            main.postDelayed({ showOverlay(title, reason) }, 400)
         }
-
         BlockEventLogger.log(this, BlockEvent(title, channel, score, reason))
         sendBroadcast(Intent("com.safestream.BLOCK").apply {
             putExtra("title",     title)
@@ -230,22 +230,15 @@ class SafeAccessibilityService : AccessibilityService() {
         })
     }
 
-    // ── WindowManager overlay ──────────────────────────────────────────────
-
     private fun showOverlay(title: String, reason: String) {
-        // Don't stack overlays
         removeOverlay()
 
-        val view = LayoutInflater.from(this)
-            .inflate(R.layout.overlay_block, null)
-
+        val view = LayoutInflater.from(this).inflate(R.layout.overlay_block, null)
         view.findViewById<TextView>(R.id.ov_title).text  = "\"$title\""
         view.findViewById<TextView>(R.id.ov_reason).text = reason
 
         val timerTv = view.findViewById<TextView>(R.id.ov_timer)
         var seconds = 6
-
-        // Countdown
         val countdown = object : Runnable {
             override fun run() {
                 if (seconds <= 0) { removeOverlay(); return }
@@ -256,30 +249,26 @@ class SafeAccessibilityService : AccessibilityService() {
         }
         timerHandler.post(countdown)
 
-        // Got it button
         view.findViewById<Button>(R.id.ov_btn_ok).setOnClickListener {
             timerHandler.removeCallbacksAndMessages(null)
             removeOverlay()
         }
 
-        // WindowManager params
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
 
         try {
             wm.addView(view, params)
             overlayView = view
-            Log.i(TAG, "Overlay shown for: $title")
+            Log.i(TAG, "Overlay shown: $title")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to show overlay: ${e.message}")
-            // Fallback: toast only
+            Log.e(TAG, "Overlay failed: ${e.message}")
             Toast.makeText(this, "Blocked: $title", Toast.LENGTH_LONG).show()
         }
     }
@@ -292,9 +281,6 @@ class SafeAccessibilityService : AccessibilityService() {
         }
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────
-
     private fun prefs() = getSharedPreferences("safestream_prefs", MODE_PRIVATE)
-
     private fun threshold() = prefs().getInt("threshold", 75)
 }
