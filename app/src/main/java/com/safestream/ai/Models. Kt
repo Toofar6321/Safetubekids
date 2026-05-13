@@ -1,0 +1,16 @@
+package com.safestream.ai
+
+data class SafetyResult(
+    val score: Int,
+    val verdict: String,
+    val flags: List<String>,
+    val summary: String
+)
+
+data class BlockEvent(
+    val title: String,
+    val channel: String,
+    val score: Int,
+    val reason: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
