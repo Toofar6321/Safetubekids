@@ -4,39 +4,62 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
-    android:background="@color/background_dark"
-    android:gravity="center">
+    android:background="#0B1622"
+    android:gravity="center"
+    android:padding="32dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="SafeStream AI"
-        android:textSize="28sp"
+        android:textColor="#00C48C"
+        android:textSize="32sp"
         android:textStyle="bold"
-        android:textColor="@color/safe_green"
         android:layout_marginBottom="8dp"/>
 
     <TextView
-        android:id="@+id/tv_service_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Protecting kids on YouTube"
+        android:textColor="#607080"
+        android:textSize="14sp"
+        android:layout_marginBottom="40dp"/>
+
+    <TextView
+        android:id="@+id/tv_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="AI Monitoring: INACTIVE"
+        android:textColor="#FF3D57"
         android:textSize="16sp"
-        android:textColor="@color/danger_red"
-        android:layout_marginBottom="32dp"/>
+        android:textStyle="bold"
+        android:layout_marginBottom="40dp"/>
 
     <Button
-        android:id="@+id/btn_toggle_service"
+        android:id="@+id/btn_enable"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Enable Service"
+        android:text="Enable Monitoring"
+        android:textColor="#FFFFFF"
+        android:background="#00C48C"
         android:layout_marginBottom="16dp"/>
 
     <Button
         android:id="@+id/btn_settings"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Settings"/>
+        android:text="Settings"
+        android:textColor="#FFFFFF"
+        android:background="#131F2E"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tv_block_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Videos blocked: 0"
+        android:textColor="#607080"
+        android:textSize="13sp"
+        android:layout_marginTop="24dp"/>
 
 </LinearLayout>
