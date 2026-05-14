@@ -1,23 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.SafeStream" parent="Theme.Material3.DayNight">
-        <item name="colorPrimary">@color/safe_green</item>
-        <item name="colorPrimaryVariant">@color/safe_green_dark</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSecondary">@color/amber</item>
-        <item name="colorOnSecondary">@color/background_dark</item>
-        <item name="colorSurface">@color/surface_dark</item>
-        <item name="colorOnSurface">@color/white</item>
-        <item name="android:colorBackground">@color/background_dark</item>
-        <item name="colorError">@color/danger_red</item>
-        <item name="android:statusBarColor">@color/surface_dark</item>
-        <item name="android:navigationBarColor">@color/background_dark</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <style name="Theme.SafeStream" parent="Theme.AppCompat.DayNight">
+        <item name="colorPrimary">#00C48C</item>
+        <item name="colorPrimaryDark">#00A87A</item>
+        <item name="colorAccent">#00C48C</item>
+        <item name="android:colorBackground">#0B1622</item>
+        <item name="android:windowBackground">#0B1622</item>
     </style>
-    <style name="Theme.SafeStream.BlockOverlay" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">@color/block_overlay_bg</item>
-        <item name="android:statusBarColor">@color/block_overlay_bg</item>
-        <item name="android:navigationBarColor">@color/block_overlay_bg</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <style name="Theme.SafeStream.NoActionBar" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#EE0B1622</item>
+        <item name="android:colorBackground">#EE0B1622</item>
     </style>
 </resources>
