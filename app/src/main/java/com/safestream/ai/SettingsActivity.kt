@@ -1,20 +1,65 @@
 package com.safestream.ai
+
 import android.content.Context
 import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
+
 class SettingsActivity : AppCompatActivity() {
-    private val prefs by lazy { getSharedPreferences("safestream_prefs",Context.MODE_PRIVATE) }
-    override fun onCreate(s: Bundle?) {
-        super.onCreate(s); setContentView(R.layout.activity_settings); supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        val etKey=findViewById<TextInputEditText>(R.id.et_api_key); val etName=findViewById<TextInputEditText>(R.id.et_child_name); val etTime=findViewById<TextInputEditText>(R.id.et_time_limit)
-        etKey.setText(prefs.getString("claude_api_key","")); etName.setText(prefs.getString("child_name","Kiddo")); etTime.setText(prefs.getInt("time_limit_min",60).toString())
-        findViewById<MaterialButton>(R.id.btn_save_api_key).setOnClickListener{prefs.edit().putString("claude_api_key",etKey.text.toString().trim()).apply();Toast.makeText(this,"Saved",Toast.LENGTH_SHORT).show()}
-        findViewById<MaterialButton>(R.id.btn_save_name).setOnClickListener{prefs.edit().putString("child_name",etName.text.toString().trim()).apply();Toast.makeText(this,"Saved",Toast.LENGTH_SHORT).show()}
-        findViewById<MaterialButton>(R.id.btn_save_time).setOnClickListener{prefs.edit().putInt("time_limit_min",etTime.text.toString().toIntOrNull()?:60).apply();Toast.makeText(this,"Saved",Toast.LENGTH_SHORT).show()}
-        findViewById<MaterialButton>(R.id.btn_clear_log).setOnClickListener{BlockEventLogger.clear(this);Toast.makeText(this,"Cleared",Toast.LENGTH_SHORT).show()}
+
+    private val prefs by lazy {
+        getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
     }
-    override fun onSupportNavigateUp():Boolean{onBackPressedDispatcher.onBackPressed();return true}
+
+    override fun onCreate(s: Bundle?) {
+        super.onCreate(s)
+        setContentView(R.layout.activity_settings)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Settings"
+
+        val etKey   = findViewById<EditText>(R.id.et_api_key)
+        val btnSave = findViewById<Button>(R.id.btn_save)
+        val seek    = findViewById<SeekBar>(R.id.seek_threshold)
+        val tvLabel = findViewById<TextView>(R.id.tv_threshold)
+        val btnClear = findViewById<Button>(R.id.btn_clear)
+
+        etKey.setText(prefs.getString("claude_api_key", ""))
+        seek.progress = prefs.getInt("threshold", 75)
+        tvLabel.text = "Balanced (${seek.progress})"
+
+        btnSave.setOnClickListener {
+            prefs.edit().putString("claude_api_key",
+                etKey.text.toString().trim()).apply()
+            Toast.makeText(this, "API key saved", Toast.LENGTH_SHORT).show()
+        }
+
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar, v: Int, f: Boolean) {
+                val label = when {
+                    v >= 85 -> "Strict"
+                    v >= 65 -> "Balanced"
+                    else    -> "Relaxed"
+                }
+                tvLabel.text = "$label ($v)"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar) {}
+            override fun onStopTrackingTouch(sb: SeekBar) {
+                prefs.edit().putInt("threshold", sb.progress).apply()
+            }
+        })
+
+        btnClear.setOnClickListener {
+            BlockEventLogger.clear(this)
+            Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressedDispatcher.onBackPressed()
+        return true
+    }
 }
