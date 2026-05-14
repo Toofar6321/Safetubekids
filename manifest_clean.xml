@@ -2,25 +2,33 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.safestream.ai">
+
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions"/>
+
     <application
         android:allowBackup="true"
         android:label="SafeStream AI"
         android:theme="@style/Theme.SafeStream">
+
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
         <activity android:name=".SettingsActivity" android:exported="false"/>
+
         <activity android:name=".BlockOverlayActivity"
             android:exported="false"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
-            android:theme="@style/Theme.SafeStream.BlockOverlay"/>
+            android:theme="@style/Theme.SafeStream.NoActionBar"/>
+
         <receiver android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true">
@@ -28,7 +36,9 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        <service android:name=".SafeAccessibilityService"
+
+        <service
+            android:name=".SafeAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"
             android:label="SafeStream AI">
@@ -39,5 +49,6 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config"/>
         </service>
+
     </application>
 </manifest>
