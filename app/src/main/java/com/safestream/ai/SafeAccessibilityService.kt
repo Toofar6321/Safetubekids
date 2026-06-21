@@ -47,16 +47,17 @@ data class BlockEvent(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-private const val TAG          = "SafeStreamAI"
+private const val TAG          = "SafeTubeKids"
 private const val YT           = "com.google.android.youtube"
 private const val APPROVED_KEY = "approved_videos"
 
 private val HARD_BLOCK = listOf(
     "scary prank", "prank on sister", "prank on brother",
-    "extreme challenge", "gone wrong",
-    "needle injection", "dead bugs", "gross challenge",
-    "killing", "murder", "horror", "demon",
-    "stabbing", "shooting", "suicide", "jump scare"
+    "extreme challenge", "gone wrong", "needle injection",
+    "dead bugs", "gross challenge", "killing", "murder",
+    "horror", "demon", "stabbing", "shooting", "suicide",
+    "jump scare", "graphic", "not for kids", "18+",
+    "adult only", "explicit"
 )
 
 private val BLOCKED_CHANNELS = setOf(
@@ -64,11 +65,13 @@ private val BLOCKED_CHANNELS = setOf(
 )
 
 private val SAFE_SUGGESTIONS = listOf(
-    "Blippi Explores" to "Blippi educational videos for kids",
-    "Cocomelon Songs" to "Cocomelon nursery rhymes",
-    "Sesame Street" to "Sesame Street official",
-    "National Geographic Kids" to "Nat Geo Kids animals",
-    "SciShow Kids" to "SciShow Kids science"
+    "Blippi Explores"        to "Blippi educational videos for kids",
+    "Cocomelon Songs"        to "Cocomelon nursery rhymes",
+    "Sesame Street"          to "Sesame Street official",
+    "Nat Geo Kids"           to "National Geographic Kids animals",
+    "SciShow Kids"           to "SciShow Kids science experiments",
+    "Pinkfong Baby Shark"    to "Pinkfong Baby Shark kids songs",
+    "Ms Rachel"              to "Ms Rachel Songs for Littles"
 )
 
 class SafeAccessibilityService : AccessibilityService() {
@@ -81,14 +84,18 @@ class SafeAccessibilityService : AccessibilityService() {
         .readTimeout(25, TimeUnit.SECONDS)
         .build()
 
-    private var lastTitle    = ""
-    private var lastTime     = 0L
-    private val sessionCache = mutableMapOf<String, SafetyResult>()
+    private var lastTitle          = ""
+    private var lastTime           = 0L
+    private val sessionCache       = mutableMapOf<String, SafetyResult>()
+    private var blockCooldownUntil = 0L
+    private var isShowingOverlay   = false
 
     private val wm: WindowManager by lazy {
         getSystemService(WINDOW_SERVICE) as WindowManager
     }
     private var overlayView: View? = null
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -100,7 +107,7 @@ class SafeAccessibilityService : AccessibilityService() {
             notificationTimeout = 100
             flags               = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         }
-        Log.i(TAG, "SafeStream connected")
+        Log.i(TAG, "SafeTube Kids connected")
         sendBroadcast(Intent("com.safestream.STATUS").putExtra("status", "RUNNING"))
     }
 
@@ -113,8 +120,14 @@ class SafeAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
+    // ── Event handler ──────────────────────────────────────────────────────
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.packageName != YT) return
+        // Don't scan while block screen is showing or during cooldown
+        if (isShowingOverlay) return
+        if (System.currentTimeMillis() < blockCooldownUntil) return
+
         val root = rootInActiveWindow ?: return
 
         var title = ""
@@ -139,70 +152,74 @@ class SafeAccessibilityService : AccessibilityService() {
         sendBroadcast(Intent("com.safestream.DETECTION")
             .putExtra("title", title).putExtra("channel", channel))
 
+        // Tier 1: blocked channel
         if (BLOCKED_CHANNELS.any { channel.contains(it, ignoreCase = true) }) {
-            block(title, channel, 0, "Channel permanently blocked")
-            return
+            block(title, channel, 0, "Channel is blocked"); return
         }
 
+        // Tier 2: hard keyword — instant, no API call
         if (HARD_BLOCK.any { title.lowercase().contains(it) }) {
-            block(title, channel, 5, "Contains blocked keyword")
-            return
+            block(title, channel, 5, "Contains unsafe keyword"); return
         }
 
+        // Tier 3: approved whitelist — never scan again
         if (isApproved(title)) {
-            Log.d(TAG, "Approved: $title")
-            return
+            Log.d(TAG, "Whitelisted: $title"); return
         }
 
+        // Tier 4: session cache
         val cached = sessionCache[title]
         if (cached != null) {
             if (cached.score < threshold() || cached.verdict == "BLOCKED") {
                 block(title, channel, cached.score,
-                    cached.flags.firstOrNull() ?: "Previously blocked")
+                    cached.flags.firstOrNull() ?: "Previously flagged")
             }
             return
         }
 
+        // Tier 5: Claude AI
         analyseWithClaude(title, channel)
     }
 
+    // ── Approved whitelist ─────────────────────────────────────────────────
+
     private fun isApproved(title: String): Boolean {
-        val approved = prefs().getStringSet(APPROVED_KEY, emptySet()) ?: emptySet()
-        return approved.contains(title.lowercase().trim())
+        val set = prefs().getStringSet(APPROVED_KEY, emptySet()) ?: emptySet()
+        return set.contains(title.lowercase().trim())
     }
 
     private fun approveVideo(title: String) {
         val p = prefs()
-        val current = p.getStringSet(APPROVED_KEY, mutableSetOf())?.toMutableSet()
-            ?: mutableSetOf()
-        current.add(title.lowercase().trim())
-        p.edit().putStringSet(APPROVED_KEY, current).apply()
+        val set = (p.getStringSet(APPROVED_KEY, mutableSetOf()) ?: mutableSetOf()).toMutableSet()
+        set.add(title.lowercase().trim())
+        p.edit().putStringSet(APPROVED_KEY, set).apply()
         Log.i(TAG, "Auto-approved: $title")
     }
+
+    // ── Claude AI ──────────────────────────────────────────────────────────
 
     private fun analyseWithClaude(title: String, channel: String) {
         scope.launch {
             try {
                 val key = prefs().getString("claude_api_key", "") ?: ""
                 if (key.isBlank()) {
-                    block(title, channel, 0, "No API key — add one in Settings")
+                    block(title, channel, 0, "No API key — tap Settings to add one")
                     return@launch
                 }
 
-                val prompt = "You are a child safety moderator for kids aged 2-12.\n" +
-                    "Video Title: $title\nChannel: $channel\n\n" +
-                    "Rate this video for children. Reply ONLY with valid JSON:\n" +
-                    "{\"safetyScore\":75,\"verdict\":\"SAFE\",\"flags\":[],\"summary\":\"ok\"}\n\n" +
-                    "safetyScore: 0-100. verdict: SAFE, REVIEW, or BLOCKED. " +
-                    "flags: up to 3 short reasons if unsafe. summary: one sentence."
+                val prompt = "Child safety moderator for kids aged 2-12.\n" +
+                    "Title: $title\nChannel: $channel\n" +
+                    "Reply ONLY with JSON: " +
+                    "{\"safetyScore\":75,\"verdict\":\"SAFE\",\"flags\":[],\"summary\":\"ok\"}\n" +
+                    "safetyScore 0-100. verdict: SAFE/REVIEW/BLOCKED. " +
+                    "flags: up to 3 short reasons if unsafe."
 
                 val body = JSONObject().apply {
                     put("model", "claude-sonnet-4-20250514")
-                    put("max_tokens", 200)
+                    put("max_tokens", 150)
                     put("messages", JSONArray().put(
                         JSONObject().apply {
-                            put("role", "user")
-                            put("content", prompt)
+                            put("role", "user"); put("content", prompt)
                         }
                     ))
                 }.toString().toRequestBody("application/json".toMediaType())
@@ -215,7 +232,7 @@ class SafeAccessibilityService : AccessibilityService() {
                         .post(body).build()
                 ).execute()
 
-                val raw = resp.body?.string() ?: throw IOException("Empty")
+                val raw = resp.body?.string() ?: throw IOException("Empty response")
                 if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
 
                 val text = JSONObject(raw)
@@ -235,40 +252,49 @@ class SafeAccessibilityService : AccessibilityService() {
                     json.optString("summary", "")
                 )
                 sessionCache[title] = result
-                Log.i(TAG, "Claude: \"$title\" -> ${result.verdict} (${result.score})")
+                Log.i(TAG, "AI: \"$title\" → ${result.verdict} (${result.score})")
 
                 if (result.score < threshold() || result.verdict == "BLOCKED") {
                     block(title, channel, result.score,
-                        if (result.flags.isNotEmpty()) result.flags.joinToString(", ")
-                        else result.summary)
+                        if (result.flags.isNotEmpty()) result.flags.joinToString(" • ")
+                        else result.summary.ifBlank { "Not suitable for kids" })
                 } else if (result.score >= 80) {
                     approveVideo(title)
                 }
 
             } catch (e: Exception) {
-                Log.w(TAG, "Claude failed: ${e.message} — blocking")
-                block(title, channel, 0, "AI check failed — blocked for safety")
+                Log.w(TAG, "AI failed: ${e.message}")
+                // Fail open — don't block if AI is unavailable
+                // Change to block() if you prefer fail-closed
+                Log.w(TAG, "Allowing video due to AI error (fail-open mode)")
             }
         }
     }
 
+    // ── Block ──────────────────────────────────────────────────────────────
+
     private fun block(title: String, channel: String, score: Int, reason: String) {
+        // Set cooldown immediately so we don't re-block during the action sequence
+        blockCooldownUntil = System.currentTimeMillis() + 12_000
+
         main.post {
-            // Stop audio immediately
+            // 1. Kill audio
             val audio = getSystemService(AUDIO_SERVICE) as AudioManager
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
-            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE))
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE))
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_STOP))
-            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_STOP))
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_STOP))
 
-            // Press BACK 4 times to close mini-player + fullscreen + video + YouTube
+            // 2. Press BACK 4x rapidly to close mini-player + fullscreen + video + app
             performGlobalAction(GLOBAL_ACTION_BACK)
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 150)
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300)
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 450)
-            // HOME as final guarantee
+
+            // 3. HOME to guarantee YouTube is gone
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 650)
-            // Show overlay after YouTube is fully gone
+
+            // 4. Show block screen
             main.postDelayed({ showOverlay(title, reason) }, 950)
         }
 
@@ -282,44 +308,48 @@ class SafeAccessibilityService : AccessibilityService() {
         })
     }
 
+    // ── Overlay ────────────────────────────────────────────────────────────
+
     private fun showOverlay(title: String, reason: String) {
         removeOverlay()
+        isShowingOverlay = true
 
         val view = LayoutInflater.from(this).inflate(R.layout.overlay_block, null)
         view.findViewById<TextView>(R.id.ov_title).text  = "\"$title\""
         view.findViewById<TextView>(R.id.ov_reason).text = reason
 
+        // Countdown
         val timerTv = view.findViewById<TextView>(R.id.ov_timer)
         var seconds  = 8
         val countdown = object : Runnable {
             override fun run() {
-                if (seconds <= 0) { removeOverlay(); return }
-                timerTv.text = "Auto-closing in ${seconds}s"
+                if (seconds <= 0) { dismissOverlay(); return }
+                timerTv.text = "Closing in ${seconds}s"
                 seconds--
                 timerHandler.postDelayed(this, 1_000)
             }
         }
         timerHandler.post(countdown)
 
+        // Got it
         view.findViewById<Button>(R.id.ov_btn_ok).setOnClickListener {
-            timerHandler.removeCallbacksAndMessages(null)
-            removeOverlay()
+            dismissOverlay()
         }
 
-        val suggestion = SAFE_SUGGESTIONS.random()
-        val btnSuggest = view.findViewById<Button>(R.id.ov_btn_suggest)
-        btnSuggest.text = "Try: ${suggestion.first}"
+        // Safe suggestion
+        val suggestion  = SAFE_SUGGESTIONS.random()
+        val btnSuggest  = view.findViewById<Button>(R.id.ov_btn_suggest)
+        btnSuggest.text = "▶ Try: ${suggestion.first}"
         btnSuggest.setOnClickListener {
-            timerHandler.removeCallbacksAndMessages(null)
-            removeOverlay()
-            val query = suggestion.second.replace(" ", "+")
+            dismissOverlay()
+            // Extended cooldown so the suggested video isn't immediately blocked
+            blockCooldownUntil = System.currentTimeMillis() + 20_000
+            val query  = suggestion.second.replace(" ", "+")
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                data = android.net.Uri.parse("https://www.youtube.com/results?search_query=$query")
+                data  = android.net.Uri.parse("https://www.youtube.com/results?search_query=$query")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
-            try { startActivity(intent) } catch (e: Exception) {
-                Log.e(TAG, "Suggestion failed: ${e.message}")
-            }
+            try { startActivity(intent) } catch (e: Exception) { Log.e(TAG, "Suggestion error: ${e.message}") }
         }
 
         val params = WindowManager.LayoutParams(
@@ -334,23 +364,31 @@ class SafeAccessibilityService : AccessibilityService() {
         try {
             wm.addView(view, params)
             overlayView = view
-            Log.i(TAG, "Overlay shown: $title")
         } catch (e: Exception) {
-            Log.e(TAG, "Overlay failed: ${e.message}")
-            Toast.makeText(this, "Blocked: $title", Toast.LENGTH_LONG).show()
+            Log.e(TAG, "Overlay error: ${e.message}")
+            isShowingOverlay = false
+            Toast.makeText(this, "SafeTube Kids: Blocked \"$title\"", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun removeOverlay() {
+    private fun dismissOverlay() {
         timerHandler.removeCallbacksAndMessages(null)
+        removeOverlay()
+        // Reset so next video scans fresh
+        lastTitle = ""
+        lastTime  = 0L
+    }
+
+    private fun removeOverlay() {
         overlayView?.let {
             try { wm.removeView(it) } catch (_: Exception) {}
             overlayView = null
         }
+        isShowingOverlay = false
     }
 
     private fun prefs(): SharedPreferences =
         getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
 
-    private fun threshold() = prefs().getInt("threshold", 75)
+    private fun threshold() = prefs().getInt("threshold", 65)
 }
