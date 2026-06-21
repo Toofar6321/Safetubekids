@@ -17,9 +17,9 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var tvStatus     : TextView
-    private lateinit var tvBlockCount : TextView
-    private lateinit var btnEnable    : Button
+    private lateinit var tvStatus    : TextView
+    private lateinit var tvCount     : TextView
+    private lateinit var btnEnable   : Button
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
@@ -35,21 +35,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         supportActionBar?.hide()
 
-        tvStatus     = findViewById(R.id.tv_status)
-        tvBlockCount = findViewById(R.id.tv_block_count)
-        btnEnable    = findViewById(R.id.btn_enable)
+        tvStatus  = findViewById(R.id.tv_status)
+        tvCount   = findViewById(R.id.tv_block_count)
+        btnEnable = findViewById(R.id.btn_enable)
 
-        btnEnable.setOnClickListener {
-            if (!hasOverlayPermission()) {
-                // Step 1: get overlay permission first
-                showOverlayPermissionDialog()
-            } else if (!isServiceEnabled()) {
-                // Step 2: enable accessibility service
-                showEnableDialog()
-            } else {
-                showDisableDialog()
-            }
-        }
+        btnEnable.setOnClickListener { handleEnableTap() }
 
         findViewById<Button>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -59,20 +49,14 @@ class MainActivity : AppCompatActivity() {
             addAction("com.safestream.BLOCK")
             addAction("com.safestream.STATUS")
         }
-        ContextCompat.registerReceiver(
-            this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED
-        )
+        ContextCompat.registerReceiver(this, receiver, filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onResume() {
         super.onResume()
         updateStatus()
         refreshCount()
-
-        // Auto-prompt if overlay permission missing
-        if (!hasOverlayPermission() && isServiceEnabled()) {
-            showOverlayPermissionDialog()
-        }
     }
 
     override fun onDestroy() {
@@ -80,41 +64,51 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(receiver) } catch (_: Exception) {}
     }
 
-    // ── Status ─────────────────────────────────────────────────────────────
+    private fun handleEnableTap() {
+        when {
+            !hasOverlay()  -> promptOverlay()
+            !hasService()  -> promptService()
+            else           -> promptDisable()
+        }
+    }
 
     private fun updateStatus() {
-        val overlayOk  = hasOverlayPermission()
-        val serviceOn  = isServiceEnabled()
+        val overlay  = hasOverlay()
+        val service  = hasService()
+        val apiKey   = getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
+            .getString("claude_api_key", "").orEmpty().isNotBlank()
 
         when {
-            serviceOn && overlayOk -> {
-                tvStatus.text = "AI Monitoring: ACTIVE"
+            service && overlay && apiKey -> {
+                tvStatus.text = "Protection: ACTIVE"
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.safe_green))
-                btnEnable.text = "Disable Monitoring"
+                btnEnable.text = "Protection is ON"
             }
-            serviceOn && !overlayOk -> {
-                tvStatus.text = "Needs overlay permission"
+            service && overlay -> {
+                tvStatus.text = "Add API key in Settings"
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.amber))
-                btnEnable.text = "Grant Overlay Permission"
+                btnEnable.text = "Open Settings"
+            }
+            service -> {
+                tvStatus.text = "Grant overlay permission"
+                tvStatus.setTextColor(ContextCompat.getColor(this, R.color.amber))
+                btnEnable.text = "Grant Permission"
             }
             else -> {
-                tvStatus.text = "AI Monitoring: INACTIVE"
+                tvStatus.text = "Protection: INACTIVE"
                 tvStatus.setTextColor(ContextCompat.getColor(this, R.color.danger_red))
-                btnEnable.text = "Enable Monitoring"
+                btnEnable.text = "Enable Protection"
             }
         }
     }
 
     private fun refreshCount() {
-        tvBlockCount.text = "Videos blocked: ${BlockEventLogger.getCount(this)}"
+        tvCount.text = "Videos blocked: ${BlockEventLogger.getCount(this)}"
     }
 
-    // ── Permission checks ──────────────────────────────────────────────────
+    private fun hasOverlay() = Settings.canDrawOverlays(this)
 
-    private fun hasOverlayPermission(): Boolean =
-        Settings.canDrawOverlays(this)
-
-    private fun isServiceEnabled(): Boolean {
+    private fun hasService(): Boolean {
         val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
         return am.getEnabledAccessibilityServiceList(
             AccessibilityServiceInfo.FEEDBACK_ALL_MASK
@@ -124,53 +118,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── Dialogs ────────────────────────────────────────────────────────────
-
-    private fun showOverlayPermissionDialog() {
+    private fun promptOverlay() {
         AlertDialog.Builder(this)
-            .setTitle("Allow Display Over Other Apps")
-            .setMessage(
-                "SafeStream needs permission to show the block screen over YouTube.\n\n" +
-                "On the next screen:\n" +
-                "1. Find SafeStream AI\n" +
-                "2. Toggle ON"
-            )
+            .setTitle("Step 1 of 2 — Allow Overlay")
+            .setMessage("SafeTube Kids needs to show a block screen over YouTube.\n\n" +
+                "On the next screen:\n1. Find SafeTube Kids\n2. Toggle ON")
             .setPositiveButton("Open Settings") { _, _ ->
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")))
             }
-            .setNegativeButton("Later", null)
-            .show()
+            .setNegativeButton("Later", null).show()
     }
 
-    private fun showEnableDialog() {
+    private fun promptService() {
         AlertDialog.Builder(this)
-            .setTitle("Enable SafeStream AI")
-            .setMessage(
-                "On the next screen:\n\n" +
-                "1. Find SafeStream AI\n" +
-                "2. Tap it\n" +
+            .setTitle("Step 2 of 2 — Enable in Accessibility")
+            .setMessage("On the next screen:\n\n" +
+                "1. Scroll to Downloaded Apps\n" +
+                "2. Tap SafeTube Kids\n" +
                 "3. Toggle ON\n" +
-                "4. Tap Allow"
-            )
-            .setPositiveButton("Open Accessibility Settings") { _, _ ->
+                "4. Tap Allow")
+            .setPositiveButton("Open Accessibility") { _, _ ->
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+            .setNegativeButton("Later", null).show()
     }
 
-    private fun showDisableDialog() {
+    private fun promptDisable() {
         AlertDialog.Builder(this)
-            .setTitle("Disable SafeStream?")
-            .setMessage("Go to Accessibility Settings to turn it off.")
-            .setPositiveButton("Open Settings") { _, _ ->
+            .setTitle("Disable Protection?")
+            .setMessage("This will stop SafeTube Kids from protecting your child on YouTube.")
+            .setPositiveButton("Open Accessibility") { _, _ ->
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+            .setNegativeButton("Cancel", null).show()
     }
 }
