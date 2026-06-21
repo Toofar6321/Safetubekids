@@ -21,40 +21,49 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Settings"
 
-        val etKey   = findViewById<EditText>(R.id.et_api_key)
-        val btnSave = findViewById<Button>(R.id.btn_save)
-        val seek    = findViewById<SeekBar>(R.id.seek_threshold)
-        val tvLabel = findViewById<TextView>(R.id.tv_threshold)
+        val etKey    = findViewById<EditText>(R.id.et_api_key)
+        val btnSave  = findViewById<Button>(R.id.btn_save)
+        val seek     = findViewById<SeekBar>(R.id.seek_threshold)
+        val tvLabel  = findViewById<TextView>(R.id.tv_threshold)
         val btnClear = findViewById<Button>(R.id.btn_clear)
 
         etKey.setText(prefs.getString("claude_api_key", ""))
-        seek.progress = prefs.getInt("threshold", 75)
-        tvLabel.text = "Balanced (${seek.progress})"
+        seek.progress = prefs.getInt("threshold", 65)
+        updateLabel(tvLabel, seek.progress)
 
         btnSave.setOnClickListener {
-            prefs.edit().putString("claude_api_key",
-                etKey.text.toString().trim()).apply()
+            val key = etKey.text.toString().trim()
+            if (key.isBlank()) {
+                Toast.makeText(this, "Please enter an API key", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            prefs.edit().putString("claude_api_key", key).apply()
             Toast.makeText(this, "API key saved", Toast.LENGTH_SHORT).show()
         }
 
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar, v: Int, f: Boolean) {
-                val label = when {
-                    v >= 85 -> "Strict"
-                    v >= 65 -> "Balanced"
-                    else    -> "Relaxed"
-                }
-                tvLabel.text = "$label ($v)"
+            override fun onProgressChanged(sb: SeekBar, v: Int, fromUser: Boolean) {
+                updateLabel(tvLabel, v)
             }
             override fun onStartTrackingTouch(sb: SeekBar) {}
             override fun onStopTrackingTouch(sb: SeekBar) {
                 prefs.edit().putInt("threshold", sb.progress).apply()
+                Toast.makeText(this@SettingsActivity,
+                    "Filter set to ${sb.progress}", Toast.LENGTH_SHORT).show()
             }
         })
 
         btnClear.setOnClickListener {
             BlockEventLogger.clear(this)
             Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateLabel(tv: TextView, v: Int) {
+        tv.text = when {
+            v >= 80 -> "Strict ($v) — blocks most content"
+            v >= 55 -> "Balanced ($v) — recommended"
+            else    -> "Relaxed ($v) — only blocks obvious content"
         }
     }
 
