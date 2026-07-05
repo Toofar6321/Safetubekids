@@ -20,7 +20,7 @@ object BlockEventLogger {
         val entry = JSONObject()
         entry.put("title",     ev.title)
         entry.put("channel",   ev.channel)
-        entry.put("score",     ev.score)
+        entry.put("rating",    ev.rating)
         entry.put("reason",    ev.reason)
         entry.put("timestamp", ev.timestamp)
         entry.put("time_str",  FMT.format(Date(ev.timestamp)))
