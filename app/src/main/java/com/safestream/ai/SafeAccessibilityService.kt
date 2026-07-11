@@ -32,10 +32,6 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-// ── Age rating system ─────────────────────────────────────────────────────────
-// Instead of 0-100, Claude returns an age rating
-// We block anything above the parent's chosen max age
-
 enum class AgeRating(val label: String, val minAge: Int) {
     ALL_AGES("All Ages", 0),
     SIX_PLUS("6+", 6),
@@ -51,7 +47,7 @@ fun parseAgeRating(raw: String): AgeRating {
         "8+", "eight_plus", "8plus"       -> AgeRating.EIGHT_PLUS
         "13+", "thirteen_plus", "13plus"  -> AgeRating.THIRTEEN_PLUS
         "blocked", "block"                -> AgeRating.BLOCKED
-        else                               -> AgeRating.EIGHT_PLUS  // default: cautious
+        else                               -> AgeRating.EIGHT_PLUS
     }
 }
 
@@ -72,7 +68,7 @@ data class BlockEvent(
 private const val TAG          = "SafeTubeKids"
 private const val YT           = "com.google.android.youtube"
 private const val APPROVED_KEY = "approved_videos"
-private const val MAX_AGE_KEY  = "max_age_rating"  // stored as AgeRating.minAge
+private const val MAX_AGE_KEY  = "max_age_rating"
 
 private val HARD_BLOCK = listOf(
     "scary prank", "prank on sister", "prank on brother",
@@ -83,9 +79,7 @@ private val HARD_BLOCK = listOf(
     "adult only", "explicit"
 )
 
-private val BLOCKED_CHANNELS = setOf(
-    "KidsSuper777", "GrossKidz", "FamilyFunPacks"
-)
+private val BLOCKED_CHANNELS = setOf("KidsSuper777", "GrossKidz", "FamilyFunPacks")
 
 private val SAFE_SUGGESTIONS = listOf(
     "Blippi Explores"     to "Blippi educational videos for kids",
@@ -170,40 +164,27 @@ class SafeAccessibilityService : AccessibilityService() {
         sendBroadcast(Intent("com.safestream.DETECTION")
             .putExtra("title", title).putExtra("channel", channel))
 
-        // Tier 1: blocked channel
         if (BLOCKED_CHANNELS.any { channel.contains(it, ignoreCase = true) }) {
-            block(title, channel, AgeRating.BLOCKED, "Channel is blocked")
-            return
+            block(title, channel, AgeRating.BLOCKED, "Channel is blocked"); return
         }
-
-        // Tier 2: hard keyword
         if (HARD_BLOCK.any { title.lowercase().contains(it) }) {
-            block(title, channel, AgeRating.BLOCKED, "Contains unsafe keyword")
-            return
+            block(title, channel, AgeRating.BLOCKED, "Contains unsafe keyword"); return
         }
+        if (isApproved(title)) { Log.d(TAG, "Whitelisted: $title"); return }
 
-        // Tier 3: approved whitelist
-        if (isApproved(title)) {
-            Log.d(TAG, "Whitelisted: $title")
-            return
-        }
-
-        // Tier 4: session cache
         val cached = sessionCache[title]
         if (cached != null) {
             if (shouldBlock(cached.rating)) {
-                block(title, channel, cached.rating,
-                    cached.flags.firstOrNull() ?: "Previously flagged")
+                block(title, channel, cached.rating, cached.flags.firstOrNull() ?: "Previously flagged")
             }
             return
         }
 
-        // Tier 5: Claude AI
         analyseWithClaude(title, channel)
     }
 
     private fun shouldBlock(rating: AgeRating): Boolean {
-        val maxAge = prefs().getInt(MAX_AGE_KEY, 6)  // default: block 8+ content
+        val maxAge = prefs().getInt(MAX_AGE_KEY, 6)
         return rating.minAge > maxAge
     }
 
@@ -217,7 +198,6 @@ class SafeAccessibilityService : AccessibilityService() {
         val set = (p.getStringSet(APPROVED_KEY, mutableSetOf()) ?: mutableSetOf()).toMutableSet()
         set.add(title.lowercase().trim())
         p.edit().putStringSet(APPROVED_KEY, set).apply()
-        Log.i(TAG, "Auto-approved: $title")
     }
 
     private fun analyseWithClaude(title: String, channel: String) {
@@ -234,21 +214,14 @@ class SafeAccessibilityService : AccessibilityService() {
                     "Assign an age rating and reply ONLY with this JSON:\n" +
                     "{\"ageRating\":\"All Ages\",\"flags\":[],\"summary\":\"ok\"}\n\n" +
                     "ageRating must be exactly one of: All Ages, 6+, 8+, 13+, Blocked\n" +
-                    "flags: up to 3 short reasons if not All Ages (empty array if safe)\n" +
-                    "summary: one sentence\n\n" +
-                    "All Ages = safe for babies and up\n" +
-                    "6+ = mild cartoon action, nothing scary\n" +
-                    "8+ = some mature themes, mild violence\n" +
-                    "13+ = teen content, strong language, adult themes\n" +
-                    "Blocked = adult content, extreme violence, inappropriate"
+                    "flags: up to 3 short reasons if not All Ages\n" +
+                    "All Ages=safe for babies. 6+=mild. 8+=some mature. 13+=teen. Blocked=adult"
 
                 val body = JSONObject().apply {
                     put("model", "claude-sonnet-4-20250514")
                     put("max_tokens", 150)
                     put("messages", JSONArray().put(
-                        JSONObject().apply {
-                            put("role", "user"); put("content", prompt)
-                        }
+                        JSONObject().apply { put("role", "user"); put("content", prompt) }
                     ))
                 }.toString().toRequestBody("application/json".toMediaType())
 
@@ -260,7 +233,7 @@ class SafeAccessibilityService : AccessibilityService() {
                         .post(body).build()
                 ).execute()
 
-                val raw = resp.body?.string() ?: throw IOException("Empty response")
+                val raw = resp.body?.string() ?: throw IOException("Empty")
                 if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
 
                 val text = JSONObject(raw)
@@ -276,19 +249,18 @@ class SafeAccessibilityService : AccessibilityService() {
 
                 val result = SafetyResult(rating, flags, json.optString("summary", ""))
                 sessionCache[title] = result
-                Log.i(TAG, "AI: \"$title\" → ${rating.label}")
+                Log.i(TAG, "AI: \"$title\" -> ${rating.label}")
 
                 if (shouldBlock(rating)) {
                     block(title, channel, rating,
                         if (flags.isNotEmpty()) flags.joinToString(" • ")
-                        else result.summary.ifBlank { "Rated ${rating.label} — not suitable" })
+                        else result.summary.ifBlank { "Rated ${rating.label}" })
                 } else if (rating == AgeRating.ALL_AGES) {
                     approveVideo(title)
                 }
 
             } catch (e: Exception) {
-                Log.w(TAG, "AI failed: ${e.message} — allowing video")
-                // Fail open on error
+                Log.w(TAG, "AI failed: ${e.message} — allowing")
             }
         }
     }
@@ -302,7 +274,6 @@ class SafeAccessibilityService : AccessibilityService() {
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_PAUSE))
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_STOP))
             audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_MEDIA_STOP))
-
             performGlobalAction(GLOBAL_ACTION_BACK)
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 150)
             main.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 300)
@@ -313,10 +284,8 @@ class SafeAccessibilityService : AccessibilityService() {
 
         BlockEventLogger.log(this, BlockEvent(title, channel, rating.label, reason))
         sendBroadcast(Intent("com.safestream.BLOCK").apply {
-            putExtra("title",     title)
-            putExtra("channel",   channel)
-            putExtra("rating",    rating.label)
-            putExtra("reason",    reason)
+            putExtra("title", title); putExtra("channel", channel)
+            putExtra("rating", rating.label); putExtra("reason", reason)
             putExtra("timestamp", System.currentTimeMillis())
         })
     }
@@ -341,33 +310,27 @@ class SafeAccessibilityService : AccessibilityService() {
         }
         timerHandler.post(countdown)
 
-        view.findViewById<Button>(R.id.ov_btn_ok).setOnClickListener {
-            dismissOverlay()
-        }
+        view.findViewById<Button>(R.id.ov_btn_ok).setOnClickListener { dismissOverlay() }
 
         val suggestion  = SAFE_SUGGESTIONS.random()
         val btnSuggest  = view.findViewById<Button>(R.id.ov_btn_suggest)
         btnSuggest.text = "▶ Try: ${suggestion.first}"
         btnSuggest.setOnClickListener {
             dismissOverlay()
-            // Short cooldown — just enough to open YouTube without re-blocking
             blockCooldownUntil = System.currentTimeMillis() + 5_000
             val query  = suggestion.second.replace(" ", "+")
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 data  = android.net.Uri.parse("https://www.youtube.com/results?search_query=$query")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
-            try { startActivity(intent) } catch (e: Exception) {
-                Log.e(TAG, "Suggestion error: ${e.message}")
-            }
+            try { startActivity(intent) } catch (e: Exception) { Log.e(TAG, "Suggestion: ${e.message}") }
         }
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
 
@@ -375,27 +338,21 @@ class SafeAccessibilityService : AccessibilityService() {
             wm.addView(view, params)
             overlayView = view
         } catch (e: Exception) {
-            Log.e(TAG, "Overlay error: ${e.message}")
             isShowingOverlay = false
-            Toast.makeText(this, "Blocked: $title (${rating.label})", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Blocked: $title", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun dismissOverlay() {
         timerHandler.removeCallbacksAndMessages(null)
         removeOverlay()
-        lastTitle = ""
-        lastTime  = 0L
+        lastTitle = ""; lastTime = 0L
     }
 
     private fun removeOverlay() {
-        overlayView?.let {
-            try { wm.removeView(it) } catch (_: Exception) {}
-            overlayView = null
-        }
+        overlayView?.let { try { wm.removeView(it) } catch (_: Exception) {}; overlayView = null }
         isShowingOverlay = false
     }
 
-    private fun prefs(): SharedPreferences =
-        getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
+    private fun prefs(): SharedPreferences = getSharedPreferences("safestream_prefs", Context.MODE_PRIVATE)
 }

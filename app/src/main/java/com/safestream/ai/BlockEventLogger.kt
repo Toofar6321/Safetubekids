@@ -26,19 +26,15 @@ object BlockEventLogger {
         entry.put("time_str",  FMT.format(Date(ev.timestamp)))
         val updated = JSONArray()
         updated.put(entry)
-        for (i in 0 until minOf(old.length(), 199)) {
-            updated.put(old.getJSONObject(i))
-        }
+        for (i in 0 until minOf(old.length(), 199)) updated.put(old.getJSONObject(i))
         p.edit().putString(KEY, updated.toString()).apply()
     }
 
-    fun getCount(ctx: Context): Int {
-        return load(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)).length()
-    }
+    fun getCount(ctx: Context): Int =
+        load(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)).length()
 
     fun clear(ctx: Context) {
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().remove(KEY).apply()
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
     }
 
     private fun load(p: SharedPreferences): JSONArray {
